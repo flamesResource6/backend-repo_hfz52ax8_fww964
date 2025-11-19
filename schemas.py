@@ -1,48 +1,54 @@
 """
-Database Schemas
+Database Schemas for Gas Cylinder Management
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model corresponds to a MongoDB collection. The collection
+name is the lowercase of the class name.
 """
-
+from typing import Optional, List, Literal
 from pydantic import BaseModel, Field
-from typing import Optional
 
-# Example schemas (replace with your own):
 
 class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
+    email: str = Field(..., description="Email address used for login")
+    name: str = Field(..., description="Display name")
+    role: Literal["admin", "staff", "driver"] = Field("admin", description="User role")
+    password: Optional[str] = Field(None, description="Plain demo password (do not use in production)")
     is_active: bool = Field(True, description="Whether user is active")
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Cylinder(BaseModel):
+    barcode: str = Field(..., description="Unique cylinder barcode/serial")
+    gas_type: Literal["LPG", "O2", "CO2", "N2", "Ar", "Other"] = Field("LPG")
+    capacity_kg: float = Field(..., gt=0, description="Cylinder capacity in KG")
+    status: Literal["in_stock", "reserved", "out_for_delivery", "delivered", "maintenance"] = Field("in_stock")
+    location: Optional[str] = Field(None, description="Warehouse bin or current location")
+    notes: Optional[str] = None
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+
+class Customer(BaseModel):
+    name: str
+    phone: str
+    address: str
+    email: Optional[str] = None
+
+
+class OrderItem(BaseModel):
+    gas_type: str
+    capacity_kg: float
+    quantity: int = Field(..., gt=0)
+
+
+class Order(BaseModel):
+    customer_id: str = Field(..., description="Reference to customer _id as string")
+    items: List[OrderItem]
+    status: Literal["pending", "preparing", "out_for_delivery", "delivered", "cancelled"] = "pending"
+    assigned_to: Optional[str] = Field(None, description="Driver user id")
+
+
+class DeliveryTask(BaseModel):
+    order_id: str
+    driver_id: Optional[str] = None
+    status: Literal["assigned", "picked_up", "en_route", "delivered", "failed"] = "assigned"
+    current_lat: Optional[float] = None
+    current_lng: Optional[float] = None
+    note: Optional[str] = None
